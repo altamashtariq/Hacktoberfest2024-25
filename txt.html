@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Heart & Cardiovascular Blood Flow Animation</title>
+<style>
+  :root{
+    --bg: #081018;
+    --vessel-blue: #1e88e5;
+    --vessel-red: #e53935;
+    --rbc: #e53935;
+    --oxy: #ff8a80;
+    --deoxy: #4fc3f7;
+    --text: #e6f0ff;
+    --muted: #9fb2cc;
+  }
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#021019 80%);color:var(--text);font-family:Inter,system-ui,Arial;display:flex;align-items:center;justify-content:center;padding:18px}
+  .container{width:min(1100px,98vw);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03));border-radius:12px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,0.6)}
+  header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+  h1{font-size:20px;margin:0}
+  .subtitle{color:var(--muted);font-size:13px}
+  .wrap{display:flex;gap:18px}
+  .svg-wrap{flex:1;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.02));border-radius:8px;padding:8px;position:relative}
+  svg{width:100%;height:720px;display:block}
+  .controls{width:300px;min-width:260px;padding:12px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.02));}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  button{background:transparent;border:1px solid rgba(255,255,255,0.08);color:var(--text);padding:8px 10px;border-radius:8px;cursor:pointer}
+  input[type="range"]{width:100%}
+  .legend{font-size:13px;color:var(--muted);margin-top:8px}
+  .label{font-size:13px;color:var(--muted);margin-bottom:6px}
+  .small{font-size:12px;color:var(--muted)}
+  footer{margin-top:12px;color:var(--muted);font-size:12px}
+  .badge{background:rgba(255,255,255,0.02);padding:6px 8px;border-radius:8px;font-weight:600}
+  /* heart pulse */
+  .pulse { transform-origin: 50% 50%; transition: transform 0.25s ease; }
+  .valve { fill: #fff; opacity:0.05; transition: opacity 0.15s ease; }
+  .valve.open { opacity:0.18; }
+  /* clickable hint */
+  .hint{position:absolute;right:12px;top:12px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Cardiovascular Blood Flow — Animated Schematic</h1>
+        <div class="subtitle">Simplified heart + pulmonary & systemic circuits. Click <span class="badge">Play</span> to start flow.</div>
+      </div>
+      <div class="subtitle">Designed for learning • Not anatomically exact</div>
+    </header>
+
+    <div class="wrap">
+      <div class="svg-wrap">
+        <div class="hint">Click vessels to add a RBC</div>
+        <svg id="svg" viewBox="0 0 1200 720" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <!-- gradients -->
+            <linearGradient id="redGrad" x1="0" x2="1">
+              <stop offset="0%" stop-color="#ff8a80"/>
+              <stop offset="100%" stop-color="#e53935"/>
+            </linearGradient>
+            <linearGradient id="blueGrad" x1="0" x2="1">
+              <stop offset="0%" stop-color="#b3e5fc"/>
+              <stop offset="100%" stop-color="#0288d1"/>
+            </linearGradient>
+
+            <!-- RBC symbol -->
+            <g id="rbc">
+              <ellipse rx="18" ry="12" fill="url(#redGrad)" />
+              <ellipse rx="10" ry="6" fill="#ffb3b3" transform="translate(-4,-3)" opacity="0.65"/>
+            </g>
+
+            <!-- RBC deoxygenated (blue) -->
+            <g id="rbcBlue">
+              <ellipse rx="18" ry="12" fill="url(#blueGrad)" />
+              <ellipse rx="10" ry="6" fill="#bfefff" transform="translate(-4,-3)" opacity="0.65"/>
+            </g>
+
+            <!-- clip-path for drawing vessel bodies -->
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+
+          </defs>
+
+          <!-- BODY (capillary bed) on right -->
+          <g id="body" transform="translate(920,180)">
+            <rect x="-40" y="0" width="300" height="320" rx="12" fill="rgba(255,255,255,0.02)"/>
+            <text x="60" y="-12" fill="#cfe9ff" font-size="14">Body / Systemic Capillaries</text>
+            <!-- tiny capillary cloud -->
+            <g id="capCloud">
+              <circle cx="40" cy="60" r="10" fill="#ffbdbd" opacity="0.18"/>
+              <circle cx="90" cy="40" r="12" fill="#ffbdbd" opacity="0.12"/>
+              <circle cx="150" cy="80" r="10" fill="#ffbdbd" opacity="0.14"/>
+              <circle cx="180" cy="130" r="14" fill="#ffbdbd" opacity="0.1"/>
+              <circle cx="120" cy="200" r="12" fill="#ffbdbd" opacity="0.09"/>
+            </g>
+          </g>
+
+          <!-- LUNGS area on left -->
+          <g id="lungs" transform="translate(60,120)">
+            <rect x="-12" y="-20" width="320" height="380" rx="12" fill="rgba(255,255,255,0.01)"/>
+            <text x="40" y="-8" fill="#cfe9ff" font-size="14">Lungs / Pulmonary Capillaries</text>
+            <g id="lungCloud">
+              <circle cx="80" cy="90" r="16" fill="#bfefff" opacity="0.18"/>
+              <circle cx="140" cy="120" r="12" fill="#bfefff" opacity="0.15"/>
+              <circle cx="200" cy="170" r="14" fill="#bfefff" opacity="0.12"/>
+              <circle cx="100" cy="220" r="12" fill="#bfefff" opacity="0.1"/>
+            </g>
+          </g>
+
+          <!-- Heart schematic center -->
+          <g id="heart" transform="translate(420,180)" class="pulse">
+            <!-- simplified heart chambers using paths/ellipses -->
+            <!-- Right atrium -->
+            <g id="RA" transform="translate(60,80)">
+              <ellipse rx="60" ry="46" fill="#2b1b2b" stroke="#4c2a3d" stroke-width="2"/>
+              <text x="-40" y="8" fill="#d9b6c9" font-size="12">RA</text>
+            </g>
+
+            <!-- Right ventricle -->
+            <g id="RV" transform="translate(120,180)">
+              <path d="M -20 -10 C 50 -60, 170 -20, 90 60 C 20 110 -40 40 -20 -10 Z" fill="#3a2230" stroke="#5b2f44"/>
+              <text x="40" y="20" fill="#d9b6c9" font-size="12">RV</text>
+            </g>
+
+            <!-- Left atrium -->
+            <g id="LA" transform="translate(220,80)">
+              <ellipse rx="60" ry="46" fill="#402328" stroke="#6a3942" stroke-width="2"/>
+              <text x="-40" y="8" fill="#ffd6d6" font-size="12">LA</text>
+            </g>
+
+            <!-- Left ventricle -->
+            <g id="LV" transform="translate(180,180)">
+              <path d="M 20 -10 C -50 -70, -170 -20, -90 60 C -20 110 40 40 20 -10 Z" fill="#501a1a" stroke="#7a3131"/>
+              <text x="-70" y="20" fill="#ffd6d6" font-size="12">LV</text>
+            </g>
+
+            <!-- valves simplified (triangles) -->
+            <polygon id="tricuspid" class="valve" points="95,110 115,110 105,125"/>
+            <polygon id="pulmonic" class="valve" points="160,75 180,70 170,90"/>
+            <polygon id="mitral" class="valve" points="150,120 170,120 160,135"/>
+            <polygon id="aortic" class="valve" points="80,65 100,60 90,80"/>
+
+            <!-- heart outline (for effect) -->
+            <g transform="translate(100,70) scale(1)">
+              <path d="M100 260 C 160 220, 240 200, 260 140 C 280 80, 200 20, 140 30 C 120 10, 60 20, 40 60 C 10 120, 40 160, 80 200 C 100 220, 110 240, 100 260 Z"
+                fill="rgba(255,255,255,0.01)" stroke="rgba(255,255,255,0.02)"/>
+            </g>
+          </g>
+
+          <!-- Major vessels and circuit paths (use stroked paths to animate along) -->
+          <!-- Systemic: LV -> Aorta -> Body -> Vena Cava -> RA -->
+          <path id="sysAorta" d="M 520 160 C 600 120, 740 100, 860 160" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="26" stroke-linecap="round"/>
+          <path id="sysAortaCenter" d="M 520 160 C 600 120, 740 100, 860 160" fill="none" stroke="none"/>
+
+          <path id="sysToBody" d="M 860 160 C 980 220, 940 320, 960 390" fill="none" stroke="rgba(255,255,255,0.01)" stroke-width="20" stroke-linecap="round"/>
+          <path id="sysToBodyCenter" d="M 860 160 C 980 220, 940 320, 960 390" fill="none" stroke="none"/>
+
+          <path id="bodyToVC" d="M 960 510 C 920 530, 780 540, 520 500" fill="none" stroke="rgba(255,255,255,0.01)" stroke-width="22" stroke-linecap="round"/>
+          <path id="bodyToVCCenter" d="M 960 510 C 920 530, 780 540, 520 500" fill="none" stroke="none"/>
+
+          <path id="VCtoRA" d="M 520 500 C 460 470, 420 300, 380 200" fill="none" stroke="rgba(255,255,255,0.01)" stroke-width="18" stroke-linecap="round"/>
+          <path id="VCtoRACenter" d="M 520 500 C 460 470, 420 300, 380 200" fill="none" stroke="none"/>
+
+          <!-- Pulmonary: RV -> Pulmonary artery -> Lungs -> Pulmonary veins -> LA -->
+          <path id="pulmOut" d="M 200 230 C 150 200, 80 150, 60 120" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="26" stroke-linecap="round"/>
+          <path id="pulmOutCenter" d="M 200 230 C 150 200, 80 150, 60 120" fill="none" stroke="none"/>
+
+          <path id="pulmToLungs" d="M 60 120 C 40 120, 20 140, 40 160" fill="none" stroke="rgba(255,255,255,0.01)" stroke-width="18" stroke-linecap="round"/>
+          <path id="pulmToLungsCenter" d="M 60 120 C 40 120, 20 140, 40 160" fill="none" stroke="none"/>
+
+          <path id="pulmFromLungs" d="M 260 120 C 300 140, 340 140, 340 160" fill="none" stroke="rgba(255,255,255,0.01)" stroke-width="18" stroke-linecap="round"/>
+          <path id="pulmFromLungsCenter" d="M 260 120 C 300 140, 340 140, 340 160" fill="none" stroke="none"/>
+
+          <path id="pulmToLA" d="M 340 160 C 380 180, 420 200, 460 190" fill="none" stroke="rgba(255,255,255,0.01)" stroke-width="18" stroke-linecap="round"/>
+          <path id="pulmToLACenter" d="M 340 160 C 380 180, 420 200, 460 190" fill="none" stroke="none"/>
+
+          <!-- small visual strokes for oxygenation color -->
+          <path d="M 520 160 C 600 120, 740 100, 860 160" stroke="rgba(229,57,53,0.12)" stroke-width="36" stroke-linecap="round" fill="none"/>
+          <path d="M 200 230 C 150 200, 80 150, 60 120" stroke="rgba(64,163,224,0.12)" stroke-width="36" stroke-linecap="round" fill="none"/>
+
+          <!-- labels -->
+          <g fill="#cfe9ff" font-size="12">
+            <text x="820" y="120">Aorta → Systemic</text>
+            <text x="970" y="170">Body</text>
+            <text x="40" y="100">Pulmonary Arteries → Lungs</text>
+          </g>
+
+          <!-- RBC layers (animated elements will be appended into these groups) -->
+          <g id="sysFlow"></g>
+          <g id="pulmFlow"></g>
+
+          <!-- overlay arrows for direction (decorative) -->
+          <g id="arrows" opacity="0.25" fill="#fff">
+            <!-- small markers along path could be added; skipped for brevity -->
+          </g>
+
+        </svg>
+      </div>
+
+      <aside class="controls">
+        <div class="label">Controls</div>
+        <div class="row">
+          <button id="playBtn">Play</button>
+          <button id="pauseBtn">Pause</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+        <div class="label">Flow speed</div>
+        <div class="row">
+          <input id="speed" type="range" min="0.2" max="2.5" value="1" step="0.05"/>
+        </div>
+
+        <div class="label">Number of RBCs</div>
+        <div class="row">
+          <button id="addSys">+ Sys RBC</button>
+          <button id="remSys">- Sys RBC</button>
+        </div>
+        <div class="row">
+          <button id="addPulm">+ Pulm RBC</button>
+          <button id="remPulm">- Pulm RBC</button>
+        </div>
+
+        <div class="label">Legend</div>
+        <div class="legend">
+          <div class="small">🔴 Oxy blood (via lungs → body)</div>
+          <div class="small">🔵 Deoxy blood (from body → lungs)</div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div class="small"><strong>How this works:</strong></div>
+          <div class="small">RBCs animate along SVG path centers. The heart pulses to push flow. Click SVG vessels to add an RBC at clicked location.</div>
+        </div>
+
+      </aside>
+    </div>
+
+    <footer>
+      Tip: open DevTools and inspect `rbcs` JavaScript array to see live state.
+    </footer>
+  </div>
+
+<script>
+/*
+  Whole heart + cardiovascular simplified animation
+  - Uses path.getPointAtLength to move RBCs along centerlines
+  - Two circuits implemented: systemic (red) and pulmonary (blue)
+  - Heart pulses at interval and briefly boosts velocity (systole)
+  - Clicking on SVG adds an RBC near click mapped to closest path
+*/
+
+// Grab SVG elements and paths
+const svg = document.getElementById('svg');
+const sysAortaCenter = document.getElementById('sysAortaCenter');
+const sysToBodyCenter = document.getElementById('sysToBodyCenter');
+const bodyToVCCenter = document.getElementById('bodyToVCCenter');
+const VCtoRACenter = document.getElementById('VCtoRACenter');
+
+const pulmOutCenter = document.getElementById('pulmOutCenter');
+const pulmToLungsCenter = document.getElementById('pulmToLungsCenter');
+const pulmFromLungsCenter = document.getElementById('pulmFromLungsCenter');
+const pulmToLACenter = document.getElementById('pulmToLACenter');
+
+const sysFlowG = document.getElementById('sysFlow');
+const pulmFlowG = document.getElementById('pulmFlow');
+
+const playBtn = document.getElementById('playBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+const speedInput = document.getElementById('speed');
+const addSysBtn = document.getElementById('addSys');
+const remSysBtn = document.getElementById('remSys');
+const addPulmBtn = document.getElementById('addPulm');
+const remPulmBtn = document.getElementById('remPulm');
+
+const heart = document.getElementById('heart');
+const tricuspid = document.getElementById('tricuspid');
+const mitral = document.getElementById('mitral');
+const pulmonic = document.getElementById('pulmonic');
+const aortic = document.getElementById('aortic');
+
+let pathCache = {};
+let running = false;
+let globalSpeed = Number(speedInput.value);
+
+// store RBC objects
+let rbcs = {
+  systemic: [],   // oxy red: path sequence LV -> Aorta -> Body -> Vena Cava -> RA -> RV -> Pulmonary
+  pulmonary: []   // blue deoxy: RV -> Pulmonary arteries -> Lungs -> Pulmonary veins -> LA -> LV
+};
+
+// helper to get total length and point for a path element
+function getPathInfo(pathEl) {
+  const L = pathEl.getTotalLength();
+  return {pathEl, L};
+}
+
+// We'll model systemic circuit as concatenation of several path segments.
+// Each RBC on systemic circuit will hold (segmentIndex, tInSegment [0..1])
+const sysSegments = [sysAortaCenter, sysToBodyCenter, bodyToVCCenter, VCtoRACenter];
+const pulmSegments = [pulmOutCenter, pulmToLungsCenter, pulmFromLungsCenter, pulmToLACenter];
+
+// cache lengths
+function refreshPathCache() {
+  pathCache.sys = sysSegments.map(getPathInfo);
+  pathCache.pulm = pulmSegments.map(getPathInfo);
+}
+refreshPathCache();
+window.addEventListener('resize', refreshPathCache);
+
+// create an SVG element from template for RBCs
+function createRBCElement(type='red') {
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', type === 'red' ? '#rbc' : '#rbcBlue');
+  use.setAttribute('transform', 'translate(-20,-20) scale(0.9)');
+  use.style.filter = 'url(#glow)';
+  use.style.opacity = 0.95;
+  return use;
+}
+
+// create an RBC on systemic circuit
+function spawnSysRBC(atSegment=0, t=0, speedMul=1) {
+  const elem = createRBCElement('red');
+  sysFlowG.appendChild(elem);
+  const r = {elem, seg: atSegment, t, speedMul};
+  rbcs.systemic.push(r);
+  return r;
+}
+// create pulmonary RBC
+function spawnPulmRBC(atSegment=0, t=0, speedMul=1) {
+  const elem = createRBCElement('blue');
+  pulmFlowG.appendChild(elem);
+  const r = {elem, seg: atSegment, t, speedMul};
+  rbcs.pulmonary.push(r);
+  return r;
+}
+
+// seed initial RBCs
+function seedInitial() {
+  // clear any existing
+  rbcs.systemic.forEach(r => r.elem.remove());
+  rbcs.pulmonary.forEach(r => r.elem.remove());
+  rbcs.systemic = [];
+  rbcs.pulmonary = [];
+
+  for (let i=0;i<12;i++) {
+    spawnSysRBC(0, i/12 * 0.9 + Math.random()*0.05, 0.9 + Math.random()*0.4);
+  }
+  for (let i=0;i<10;i++) {
+    spawnPulmRBC(0, i/10 * 0.9 + Math.random()*0.05, 0.9 + Math.random()*0.5);
+  }
+}
+seedInitial();
+
+// helper: advance along segments chain
+function advanceOnSegments(r, segmentsInfo, deltaT) {
+  // increase t
+  r.t += deltaT * r.speedMul * globalSpeed;
+  while (r.t > 1) {
+    r.t -= 1;
+    r.seg = (r.seg + 1) % segmentsInfo.length;
+  }
+  // compute absolute length along current segment
+  const segInfo = segmentsInfo[r.seg];
+  const posLen = Math.max(0, Math.min(segInfo.L, r.t * segInfo.L));
+  const pt = segInfo.pathEl.getPointAtLength(posLen);
+  // for rotation, sample a point slightly ahead
+  const aheadLen = Math.min(segInfo.L, posLen + 1);
+  const ahead = segInfo.pathEl.getPointAtLength(aheadLen);
+  const angle = Math.atan2(ahead.y - pt.y, ahead.x - pt.x) * 180 / Math.PI;
+  r.elem.setAttribute('transform', `translate(${pt.x},${pt.y}) rotate(${angle}) scale(0.9)`);
+}
+
+// main animation loop
+let lastTs = null;
+let heartBeatTimer = 0;
+let heartBeatInterval = 900; // ms between beats (approx)
+function animate(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = ts - lastTs;
+  lastTs = ts;
+
+  if (running) {
+    // move systemic RBCs
+    const sysInfo = pathCache.sys;
+    const pulmInfo = pathCache.pulm;
+
+    // base delta t per ms (controls base speed)
+    const baseDT = 0.00008; // tuned empirically
+
+    rbcs.systemic.forEach(r => {
+      advanceOnSegments(r, sysInfo, baseDT * dt);
+    });
+    rbcs.pulmonary.forEach(r => {
+      advanceOnSegments(r, pulmInfo, baseDT * dt * 1.1); // pulmonary slightly faster
+    });
+
+    // heartbeat: every interval cause a pulse and temporary speed bump
+    heartBeatTimer += dt;
+    if (heartBeatTimer >= heartBeatInterval) {
+      heartBeatTimer = 0;
+      // pulse animation
+      heart.style.transform = 'scale(0.93)';
+      setTimeout(()=> heart.style.transform = 'scale(1)', 200);
+
+      // valves open/close quick visual
+      [tricuspid, mitral, pulmonic, aortic].forEach(v => v.classList.toggle('open'));
+      setTimeout(()=> [tricuspid, mitral, pulmonic, aortic].forEach(v => v.classList.toggle('open')), 220);
+
+      // brief speed bump
+      const spike = 1.6;
+      rbcs.systemic.forEach(r => r.speedMul *= spike);
+      rbcs.pulmonary.forEach(r => r.speedMul *= spike);
+      setTimeout(()=>{
+        rbcs.systemic.forEach(r => r.speedMul /= spike);
+        rbcs.pulmonary.forEach(r => r.speedMul /= spike);
+      }, 200);
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+// controls
+playBtn.addEventListener('click', ()=> { running = true; });
+pauseBtn.addEventListener('click', ()=> { running = false; });
+resetBtn.addEventListener('click', ()=> { running = false; seedInitial(); });
+
+speedInput.addEventListener('input', (e) => {
+  globalSpeed = Number(e.target.value);
+});
+
+// add/remove buttons
+addSysBtn.addEventListener('click', ()=> spawnSysRBC(0, 0, 1.0));
+remSysBtn.addEventListener('click', ()=> {
+  const r = rbcs.systemic.pop();
+  if (r) r.elem.remove();
+});
+addPulmBtn.addEventListener('click', ()=> spawnPulmRBC(0, 0, 1.0));
+remPulmBtn.addEventListener('click', ()=> {
+  const r = rbcs.pulmonary.pop();
+  if (r) r.elem.remove();
+});
+
+// clicking on svg: map click to nearest path and spawn RBC
+svg.addEventListener('click', (ev) => {
+  // map click to svg coords
+  const pt = svg.createSVGPoint();
+  pt.x = ev.clientX; pt.y = ev.clientY;
+  const ctm = svg.getScreenCTM().inverse();
+  const loc = pt.matrixTransform(ctm);
+
+  // sample some candidate points along all center paths, find nearest
+  const candidates = [
+    ...pathCache.sys.map((s,i)=>({type:'sys', seg:i, path:s.pathEl, L:s.L })),
+    ...pathCache.pulm.map((s,i)=>({type:'pulm', seg:i, path:s.pathEl, L:s.L }))
+  ];
+  let best = {d: Infinity, info: null, t:0};
+  candidates.forEach(c => {
+    // sample N points along this segment
+    const samples = 60;
+    for (let i=0;i<=samples;i++){
+      const t = i/samples;
+      const pt2 = c.path.getPointAtLength(t * c.L);
+      const dx = pt2.x - loc.x;
+      const dy = pt2.y - loc.y;
+      const d = Math.hypot(dx,dy);
+      if (d < best.d) { best = {d, info:c, t}; }
+    }
+  });
+
+  if (best.info) {
+    if (best.info.type === 'sys') {
+      spawnSysRBC(best.info.seg, best.t, 1.0);
+    } else {
+      spawnPulmRBC(best.info.seg, best.t, 1.0);
+    }
+  }
+});
+
+// convenience: expose rbcs to window for debugging
+window.rbcs = rbcs;
+window.start = ()=> running = true;
+window.stop = ()=> running = false;
+
+// start paused
+running = true;
+</script>
+</body>
+</html>
